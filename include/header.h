@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include <inttypes.h>
+#include <optional>
+#include <string>
 
 
 
@@ -26,17 +28,24 @@ namespace logic
         {
             enum class Mode : uint8_t
             {
-                IN   = 0,
-                AND  = 1,
-                OR   = 2,
-                XOR  = 3,
-                NAND = 4,
-                NOR  = 5,
-                XNOR = 6
+                IN   = 0b000,
+
+                AND  = 0b001,
+                OR   = 0b010,
+                XOR  = 0b011,
+                
+                NAND = 0b101,
+                NOR  = 0b110,
+                XNOR = 0b111
             };
 
             uint64_t inputMask;
             Mode mode;
+
+            // gate activation 0 or 1
+            uint64_t getActivation(uint64_t activation);
+
+
         };
 
         struct Layer
@@ -46,7 +55,7 @@ namespace logic
             uint8_t gateOffset;
         };
 
-        static SequentialCircuit solve(
+        static std::optional<SequentialCircuit> solve(
             std::vector<uint8_t> layerSizes,
             TruthTable& truthTable,
             std::vector<Gate::Mode> modes,
@@ -55,15 +64,26 @@ namespace logic
         std::vector<Layer> layers;
     };
 
-
-
-    // unique order-independent combinations for
-    // placing items of m types at k positions
-    // optionally allow for type duplicates 
-    std::vector<std::vector<uint64_t>> uniqueCombinationsOI(uint8_t positions, uint64_t types, bool typeDuplicates = true);
+    
+    // return true if an output layer can be constructed,
+    // which satisfies the truth table
+    bool tryConstructOutputLayer(
+        SequentialCircuit& circuit, 
+        TruthTable& truthTable, 
+        std::vector<SequentialCircuit::Gate::Mode> modes);
 };
 
 
+
+
+uint64_t combinationsWReplacementsRec(uint64_t n, uint64_t k);
+uint64_t combinationsWReplacements(uint64_t n, uint64_t k);
+
+
+// unique order-independent combinations for
+// placing items of m types at k positions
+// optionally allow for type duplicates 
+std::vector<std::vector<uint64_t>> uniqueCombinationsOI(uint8_t positions, uint64_t types, bool typeDuplicates = true);
 
 
 template<typename T>
@@ -88,3 +108,18 @@ std::vector<std::vector<T>> cartesianProduct(
 
     return v;
 }
+
+
+
+namespace std
+{
+    std::string to_string(const logic::SequentialCircuit::Gate::Mode& mode);
+    std::string to_string(const logic::SequentialCircuit::Gate& gate);
+    std::string to_string(const logic::SequentialCircuit::Layer& layer);
+    std::string to_string(const logic::SequentialCircuit& circuit);
+    
+    std::ostream& operator<<(std::ostream &out, const logic::SequentialCircuit::Gate::Mode& mode);
+    std::ostream& operator<<(std::ostream &out, const logic::SequentialCircuit::Gate& gate);
+    std::ostream& operator<<(std::ostream &out, const logic::SequentialCircuit::Layer& layer);
+    std::ostream& operator<<(std::ostream &out, const logic::SequentialCircuit& circuit);
+};
