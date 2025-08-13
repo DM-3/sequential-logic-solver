@@ -19,6 +19,8 @@ namespace logic
         };
 
         std::vector<Entry> entries;
+
+        static TruthTable readCSV(std::string filename);
     };
 
 
@@ -44,8 +46,6 @@ namespace logic
 
             // gate activation 0 or 1
             uint64_t getActivation(uint64_t activation);
-
-
         };
 
         struct Layer
