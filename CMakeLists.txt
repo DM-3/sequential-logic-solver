@@ -5,6 +5,12 @@ set(CMAKE_CXX_FLAGS "-O3")
 project(SequentialLogicSolver)
 
 
-add_executable(main "src/main.cpp" "src/header.cpp")
+add_executable(main 
+    "src/main.cpp" 
+    "src/solve.cpp"
+    "src/print.cpp"
+    "src/truthTable.cpp"
+    "src/util.cpp"
+    )
 
 target_include_directories(main PRIVATE "include")

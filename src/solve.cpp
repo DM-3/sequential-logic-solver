@@ -1,52 +1,11 @@
-#include "header.h"
+#include "sequentialCircuit.h"
 #include <iostream>
 #include <algorithm>
 #include <numeric>
 #include <math.h>
-#include <iomanip>
-#include <fstream>
 #include <bitset>
 
 using namespace logic;
-using LayerCombinations = std::vector<SequentialCircuit::Layer>;
-
-
-
-
-logic::TruthTable logic::TruthTable::readCSV(std::string filename)
-{
-    std::ifstream file(filename);
-
-    if (!file.is_open()) return {};
-
-    logic::TruthTable table;
-    std::string line;
-    std::getline(file, line);
-    while (std::getline(file, line))
-    {
-        if (line.empty()) continue;
-
-        table.entries.push_back({});
-
-        size_t begin = 0, end;
-        end = line.find(',', begin);
-        table.entries.back().inputBits = std::stoull(line.substr(begin, end - begin));
-        if (end == std::string::npos) continue;
-
-        begin = end + 1;
-        end = line.find(',', begin);
-        table.entries.back().outputBits = std::stoull(line.substr(begin, end - begin));
-        if (end == std::string::npos) continue;
-
-        begin = end + 1;
-        end = std::string::npos;
-        table.entries.back().dontCareBits = std::stoull(line.substr(begin, end - begin));
-    }
-
-    file.close();
-
-    return table;
-}
 
 
 
@@ -56,7 +15,7 @@ struct LayerBuilder
     uint8_t size;
     uint8_t inputOffset;
     uint8_t gateOffset;
-    LayerCombinations combinations;
+    std::vector<SequentialCircuit::Layer> combinations;
 };
 
 
@@ -293,7 +252,7 @@ bool logic::tryConstructOutputLayer(
             for (auto [activation, dontCare] : tt)
             {
                 if (dontCare & pos) continue;
-                
+
                 using enum SequentialCircuit::Gate::Mode;
 
                 // compute all mode activations simultaneously and 
@@ -333,116 +292,3 @@ bool logic::tryConstructOutputLayer(
     // getting here means a gate was found for all output positions
     return true;
 }
-
-
-
-
-uint64_t combinationsWReplacementsRec(uint64_t n, uint64_t k)
-{
-    if (k <= 1 or n <= 1) return n;
-    return combinationsWReplacementsRec(n - 1, k) + combinationsWReplacementsRec(n, k - 1);
-}
-
-uint64_t combinationsWReplacements(uint64_t n, uint64_t k)
-{
-    uint64_t x = 1;
-    for (uint64_t i = 1; i < n; i++)
-        x += x * k / i;
-    return x;
-}
-
-
-
-
-std::vector<std::vector<uint64_t>> uniqueCombinationsOI(uint8_t positions, uint64_t types, bool typeDuplicates)
-{
-    std::vector<std::vector<uint64_t>> combinations = {};
-
-    if (!typeDuplicates and types < positions)
-        return combinations;
-    
-    if (types <= 1)
-    {
-        combinations.push_back(std::vector<uint64_t>(positions, 0));
-        return combinations;
-    }
-    
-    if (positions <= 1)
-    {
-        for (uint64_t i = 0; i < types; i++) 
-            combinations.push_back({ i });
-        return combinations;
-    }
-
-    auto c2 = uniqueCombinationsOI(positions, types - 1, typeDuplicates);
-    std::copy(c2.begin(), c2.end(), std::back_inserter(combinations));
-    
-    auto c1 = uniqueCombinationsOI(positions - 1, types - (typeDuplicates ? 0 : 1), typeDuplicates);
-    for (auto& c : c1)
-        c.push_back(types - 1);
-    std::copy(c1.begin(), c1.end(), std::back_inserter(combinations));
-
-    return combinations;
-}
-
-
-
-
-namespace std
-{
-    std::string to_string(const logic::SequentialCircuit::Gate::Mode& mode)
-    {
-        using enum logic::SequentialCircuit::Gate::Mode;
-
-        switch (mode)
-        {
-            case IN:    return "IN  ";
-            case AND:   return "AND ";
-            case OR:    return "OR  ";
-            case XOR:   return "XOR ";
-            case NAND:  return "NAND";
-            case NOR:   return "NOR ";
-            case XNOR:  return "XNOR";
-        }
-        return {};
-    }
-
-    std::string to_string(const logic::SequentialCircuit::Gate& gate)
-    {
-        std::stringstream ss;
-        ss << setw(5) << gate.inputMask << "_" << gate.mode;
-        return ss.str();
-    }
-
-    std::string to_string(const logic::SequentialCircuit::Layer& layer)
-    {
-        std::stringstream ss;
-        ss << "[ ";
-        for (auto& gate : layer.gates)
-            ss << gate << "\t";
-        ss << "]";
-        return ss.str();
-    }
-
-    std::string to_string(const logic::SequentialCircuit& circuit)
-    {
-        std::stringstream ss;
-        ss << "circuit:\n";
-        for (int i = 0; i < circuit.layers.size(); i++)
-            ss << " layer " << i << ": \t" << circuit.layers[i] << "\n";
-        ss << "\n";
-        return ss.str();
-    }
-
-    std::ostream& operator<<(std::ostream& out, const logic::SequentialCircuit::Gate::Mode& mode)
-    { return out << to_string(mode); }
-
-    std::ostream& operator<<(std::ostream& out, const logic::SequentialCircuit::Gate& gate)
-    { return out << to_string(gate); }
-
-    std::ostream& operator<<(std::ostream& out, const logic::SequentialCircuit::Layer& layer)
-    { return out << to_string(layer); }
-
-    std::ostream& operator<<(std::ostream& out, const logic::SequentialCircuit& circuit)
-    { return out << to_string(circuit); }
-};
