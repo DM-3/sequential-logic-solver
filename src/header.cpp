@@ -70,6 +70,8 @@ std::optional<SequentialCircuit> SequentialCircuit::solve(
     if (std::find_if(layerSizes.begin(), layerSizes.end(), [](uint8_t s){ return s == 0; }) != layerSizes.end())
         throw std::invalid_argument("Solver expects layer sizes to be greater 0");    
 
+    
+    std::sort(modes.begin(), modes.end());
 
     // prepare layer builders
     
@@ -115,7 +117,35 @@ std::optional<SequentialCircuit> SequentialCircuit::solve(
                 positions++;
             }
 
-            for (auto maskSet : masks)
+
+            // remove redundant single-input connections
+            if (balanced and modes.size() > 1 and (uint8_t)modes[1] < 4)
+                masks.erase(std::remove_if(masks.begin(), masks.end(),
+                [&](std::vector<uint64_t> maskCombo)
+                {
+                    for (int i = 0; i < modeCombo.size(); i++)
+                        if (modeCombo[i] < 4 and
+                            modeCombo[i] != (uint64_t)modes.front() and
+                            maskCombo[i] & (maskCombo[i] - 1) == 0)
+                            return true;
+                    return false;
+                }), masks.end());
+            else
+                masks.erase(std::remove_if(masks.begin(), masks.end(), 
+                [&](std::vector<uint64_t> maskCombo)
+                {
+                    for (int i = 0; i < modeCombo.size(); i++)
+                        if ((modeCombo[i] < 4 or 
+                             modeCombo[i] > 4 and
+                             modeCombo[i] != (uint64_t)modes.back()) and
+                            maskCombo[i] & (maskCombo[i] - 1) == 0)
+                            return true;
+                    return false;
+                }), masks.end());
+
+
+            // write to builder
+            for (auto maskCombo : masks)
             {
                 Layer layer;
                 layer.inputOffset = builder.inputOffset;
@@ -124,7 +154,7 @@ std::optional<SequentialCircuit> SequentialCircuit::solve(
 
                 for (int i = 0; i < builder.size; i++)
                 {
-                    layer.gates[i].inputMask = (maskSet[i] + 1) << builder.inputOffset;
+                    layer.gates[i].inputMask = (maskCombo[i] + 1) << builder.inputOffset;
                     layer.gates[i].mode = modes[modeCombo[i]];
                 }
 
@@ -263,13 +293,13 @@ bool logic::tryConstructOutputLayer(
                 {
                     if (dontCare & pos != 0) 
                         continue;
-
+                                                
                     if (
                         gate.getActivation(activation) * pos  // gate activation shifted to gate position
                         != 
                         (activation & pos)                    // truth table at gate position
                     )
-                        goto next_mode;                     // truth table fail -> try next gate mode
+                        goto next_mode;                       // truth table fail -> try next gate mode
                 }
 
                 // getting here means the truth table could be matched
