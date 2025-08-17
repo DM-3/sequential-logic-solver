@@ -5,6 +5,7 @@
 #include <math.h>
 #include <iomanip>
 #include <fstream>
+#include <bitset>
 
 using namespace logic;
 using LayerCombinations = std::vector<SequentialCircuit::Layer>;
@@ -278,6 +279,9 @@ bool logic::tryConstructOutputLayer(
 
     // try construction
     
+    uint8_t allModes = 0;
+    for (auto m : modes) allModes |= 1 << (uint8_t)m;
+
     uint64_t maskInc = 1ul << circuit.layers.back().inputOffset;
     uint64_t maskTop = 1ul << circuit.layers.back().gateOffset;
     uint64_t pos     = 1ul << circuit.layers.back().gateOffset;
@@ -285,27 +289,37 @@ bool logic::tryConstructOutputLayer(
     {
         for (gate.inputMask = maskInc; gate.inputMask < maskTop; gate.inputMask += maskInc)
         {
-            for (auto mode : modes)
+            uint8_t modeOptions = allModes;
+            for (auto [activation, dontCare] : tt)
             {
-                gate.mode = mode;
-
-                for (auto [activation, dontCare] : tt)
-                {
-                    if (dontCare & pos != 0) 
-                        continue;
-                                                
-                    if (
-                        gate.getActivation(activation) * pos  // gate activation shifted to gate position
-                        != 
-                        (activation & pos)                    // truth table at gate position
-                    )
-                        goto next_mode;                       // truth table fail -> try next gate mode
-                }
-
-                // getting here means the truth table could be matched
-                goto next_pos;
+                if (dontCare & pos) continue;
                 
-            next_mode: ;
+                using enum SequentialCircuit::Gate::Mode;
+
+                // compute all mode activations simultaneously and 
+                // keep track of wether one is suitable with the 
+                // given input mask
+                uint64_t maskedActivation = activation & gate.inputMask;
+                uint8_t modeActivations = 
+                    (uint8_t(maskedActivation == gate.inputMask)  << uint8_t(AND)) |
+                    (uint8_t(maskedActivation > 0)                << uint8_t(OR))  |
+                    (uint8_t(__builtin_parityll(maskedActivation) << uint8_t(XOR)));
+                modeActivations |= (~modeActivations) << 4;
+                
+                // keep 1 in mode option if mode activation matches desired activation
+                modeOptions &= (activation & pos) ? modeActivations : ~modeActivations;
+
+                if (!modeOptions) break;
+            }
+
+            // getting here either there are no more mode options for this
+            // position, or the truth table was fully traversed with mode
+            // options remaining (position done)
+            if (modeOptions)
+            {
+                // get first mode that persisted in mode options
+                gate.mode = (SequentialCircuit::Gate::Mode)__builtin_popcountll(~modeOptions & (modeOptions - 1));
+                goto next_pos;
             }
         }
 
