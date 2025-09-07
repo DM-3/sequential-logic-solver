@@ -46,7 +46,7 @@ namespace logic
             Mode mode;
 
             // gate activation 0 or 1
-            uint64_t getActivation(uint64_t activation);
+            uint64_t getActivation(uint64_t activation) const;
         };
 
         struct Layer
@@ -65,13 +65,29 @@ namespace logic
         std::vector<Layer> layers;
     };
 
+
+    // compressed truth table format containing input bits, gate 
+    // activations throughout the circuit, and the target output bits
+    // pair: (input | activations | output << n, dontCareBits)
+    using ActivationTruthTable = std::vector<std::pair<uint64_t, uint64_t>>;
     
+    // compute full circuit activations for all truth table inputs 
+    ActivationTruthTable computeActivationTruthTable(
+        const SequentialCircuit& circuit,
+        const TruthTable& truthTable);
+
+    // update truth table for layer at layerIndex and following layers
+    void updateActivationTruthTable(
+        const SequentialCircuit& circuit,
+        ActivationTruthTable& activationTruthTable,
+        uint8_t layerIndex);
+
     // return true if an output layer can be constructed,
     // which satisfies the truth table
     bool tryConstructOutputLayer(
         SequentialCircuit& circuit, 
-        TruthTable& truthTable, 
-        std::vector<SequentialCircuit::Gate::Mode> modes);
+        const ActivationTruthTable& activationTruthTable,
+        const std::vector<SequentialCircuit::Gate::Mode> modes);
 };
 
 

@@ -154,7 +154,9 @@ std::optional<SequentialCircuit> SequentialCircuit::solve(
     outputLayer.gates.resize(layerSizes.back());
     
     
-    
+
+    ActivationTruthTable att;
+
     // search circuit combinations
     // -> check constructability of output layer against truth table
 
@@ -177,7 +179,15 @@ std::optional<SequentialCircuit> SequentialCircuit::solve(
 
         std::cout << "\rcircuit combo: " << circuitCombo << " / " << nCircuitCombos;
         
-        if (tryConstructOutputLayer(circuit, truthTable, modes))
+
+        if (circuitCombo == 0)
+            att = computeActivationTruthTable(circuit, truthTable);
+        else
+            updateActivationTruthTable(circuit, att, 
+                circuitCombo % layerBuilders.back().combinations.size() == 0 ?
+                1 : layerBuilders.size());
+
+        if (tryConstructOutputLayer(circuit, att, modes))
         {
             std::cout << std::endl;
             return circuit;
@@ -191,7 +201,7 @@ std::optional<SequentialCircuit> SequentialCircuit::solve(
 
 
 
-uint64_t logic::SequentialCircuit::Gate::getActivation(uint64_t activation)
+uint64_t logic::SequentialCircuit::Gate::getActivation(uint64_t activation) const
 {
     uint64_t maskedActivation = activation & inputMask;
 
@@ -207,13 +217,10 @@ uint64_t logic::SequentialCircuit::Gate::getActivation(uint64_t activation)
 
 
 
-bool logic::tryConstructOutputLayer(
-    SequentialCircuit& circuit, 
-    TruthTable& truthTable, 
-    std::vector<SequentialCircuit::Gate::Mode> modes
+ActivationTruthTable logic::computeActivationTruthTable(
+    const SequentialCircuit& circuit,
+    const TruthTable& truthTable
 ) {
-    // compute full circuit activations for all truth table inputs 
-    // pair: (input | activations | output << n, dontCareBits)
     std::vector<std::pair<uint64_t, uint64_t>> tt(truthTable.entries.size());
     for (uint64_t i = 0; i < tt.size(); i++)
     {
@@ -223,7 +230,7 @@ bool logic::tryConstructOutputLayer(
         // write gate activation bits
         for (uint8_t l = 1; l < circuit.layers.size() - 1; l++)
         {
-            SequentialCircuit::Layer& layer = circuit.layers[l];
+            const SequentialCircuit::Layer& layer = circuit.layers[l];
             for (uint8_t g = 0; g < layer.gates.size(); g++)
                 tt[i].first |= layer.gates[g].getActivation(tt[i].first) << (layer.gateOffset + g);
         }
@@ -235,21 +242,51 @@ bool logic::tryConstructOutputLayer(
         tt[i].second = truthTable.entries[i].dontCareBits << circuit.layers.back().gateOffset;
     }
 
+    return tt;
+}
 
-    // try construction
-    
+
+
+
+void logic::updateActivationTruthTable(
+    const SequentialCircuit& circuit,
+    ActivationTruthTable& activationTruthTable,
+    uint8_t layerIndex
+) {
+    for (uint8_t l = layerIndex; l < circuit.layers.size() - 1; l++)
+    {
+        auto& layer = circuit.layers[l];
+        for (auto& [activation, _] : activationTruthTable)
+        {
+            for (uint8_t g = 0; g < layer.gates.size(); g++)
+            {
+                activation &= ~(1ul << (layer.gateOffset + g));
+                activation |= layer.gates[g].getActivation(activation) << (layer.gateOffset + g);
+            }
+        }
+    }
+}
+
+
+
+
+bool logic::tryConstructOutputLayer(
+    SequentialCircuit& circuit, 
+    const ActivationTruthTable& activationTruthTable, 
+    const std::vector<SequentialCircuit::Gate::Mode> modes
+) {
     uint8_t allModes = 0;
     for (auto m : modes) allModes |= 1 << (uint8_t)m;
 
-    uint64_t maskInc = 1ul << circuit.layers.back().inputOffset;
-    uint64_t maskTop = 1ul << circuit.layers.back().gateOffset;
-    uint64_t pos     = 1ul << circuit.layers.back().gateOffset;
+    const uint64_t maskInc = 1ul << circuit.layers.back().inputOffset;
+    const uint64_t maskTop = 1ul << circuit.layers.back().gateOffset;
+    uint64_t       pos     = 1ul << circuit.layers.back().gateOffset;
     for (auto& gate : circuit.layers.back().gates)
     {
         for (gate.inputMask = maskInc; gate.inputMask < maskTop; gate.inputMask += maskInc)
         {
             uint8_t modeOptions = allModes;
-            for (auto [activation, dontCare] : tt)
+            for (auto [activation, dontCare] : activationTruthTable)
             {
                 if (dontCare & pos) continue;
 
