@@ -17,7 +17,12 @@ Within the toplevel directory of the repository, create a build directory:
 mkdir build && cd build
 ```
 
-Build with:
+Then configure the cmake project:
+```
+cmake ..
+```
+
+Finally build with:
 ```
 cmake --build .
 ```
