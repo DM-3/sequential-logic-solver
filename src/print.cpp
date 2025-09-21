@@ -1,6 +1,7 @@
 #include "sequentialCircuit.h"
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 
 
 
