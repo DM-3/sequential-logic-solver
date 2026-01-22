@@ -8,7 +8,8 @@ logic::TruthTable logic::TruthTable::readCSV(std::string filename)
 {
     std::ifstream file(filename);
 
-    if (!file.is_open()) return {};
+    if (!file.is_open())
+        throw std::runtime_error("failed to open file: " + filename);
 
     logic::TruthTable table;
     std::string line;

@@ -33,6 +33,13 @@ std::optional<SequentialCircuit> SequentialCircuit::solve(
     
     std::sort(modes.begin(), modes.end());
 
+    const uint64_t allModesBits = [&]() {
+            uint64_t temp = 0;
+            for (auto m : modes) temp |= 1ull << uint64_t(m);
+            return temp;
+        }();
+
+
     // prepare layer builders
     
     std::vector<LayerBuilder> layerBuilders(layerSizes.size() - 2);
@@ -187,7 +194,7 @@ std::optional<SequentialCircuit> SequentialCircuit::solve(
                 circuitCombo % layerBuilders.back().combinations.size() == 0 ?
                 1 : layerBuilders.size());
 
-        if (tryConstructOutputLayer(circuit, att, modes))
+        if (tryConstructOutputLayer(circuit, att, allModesBits))
         {
             std::cout << std::endl;
             return circuit;
@@ -204,14 +211,27 @@ std::optional<SequentialCircuit> SequentialCircuit::solve(
 uint64_t logic::SequentialCircuit::Gate::getActivation(uint64_t activation) const
 {
     uint64_t maskedActivation = activation & inputMask;
+    uint64_t mmode = uint64_t(mode) & 3ull;
 
-    switch (uint8_t(mode) & 3)
-    {
-        case uint8_t(Mode::AND):   return uint64_t(maskedActivation == inputMask) ^ (uint64_t(mode) >> 2);
-        case uint8_t(Mode::OR):    return uint64_t(maskedActivation != 0)         ^ (uint64_t(mode) >> 2); 
-        case uint8_t(Mode::XOR):   return __builtin_parityll(maskedActivation)    ^ (uint64_t(mode) >> 2);
-    }
-    return 0;
+    uint64_t act = 
+        (mmode == uint64_t(Mode::AND)) & uint64_t(maskedActivation == inputMask) |
+        (mmode == uint64_t(Mode::OR))  & uint64_t(maskedActivation != 0)         |
+        (mmode == uint64_t(Mode::XOR)) & __builtin_parityll(maskedActivation);
+
+    return act ^ (uint64_t(mode) >> 2);
+}
+
+
+
+
+void logic::SequentialCircuit::Layer::setActivations(uint64_t& activation) const
+{
+    // clear bits
+    activation &= ~(((1ull << gates.size()) - 1ull) << gateOffset);
+
+    // set bits
+    for (uint8_t g = 0; g < gates.size(); g++)
+        activation |= gates[g].getActivation(activation) << (gateOffset + g);
 }
 
 
@@ -229,11 +249,7 @@ ActivationTruthTable logic::computeActivationTruthTable(
         
         // write gate activation bits
         for (uint8_t l = 1; l < circuit.layers.size() - 1; l++)
-        {
-            const SequentialCircuit::Layer& layer = circuit.layers[l];
-            for (uint8_t g = 0; g < layer.gates.size(); g++)
-                tt[i].first |= layer.gates[g].getActivation(tt[i].first) << (layer.gateOffset + g);
-        }
+            circuit.layers[l].setActivations(tt[i].first);
         
         // write output bits
         tt[i].first |= truthTable.entries[i].outputBits << circuit.layers.back().gateOffset;
@@ -254,17 +270,8 @@ void logic::updateActivationTruthTable(
     uint8_t layerIndex
 ) {
     for (uint8_t l = layerIndex; l < circuit.layers.size() - 1; l++)
-    {
-        auto& layer = circuit.layers[l];
         for (auto& [activation, _] : activationTruthTable)
-        {
-            for (uint8_t g = 0; g < layer.gates.size(); g++)
-            {
-                activation &= ~(1ul << (layer.gateOffset + g));
-                activation |= layer.gates[g].getActivation(activation) << (layer.gateOffset + g);
-            }
-        }
-    }
+            circuit.layers[l].setActivations(activation);
 }
 
 
@@ -273,11 +280,8 @@ void logic::updateActivationTruthTable(
 bool logic::tryConstructOutputLayer(
     SequentialCircuit& circuit, 
     const ActivationTruthTable& activationTruthTable, 
-    const std::vector<SequentialCircuit::Gate::Mode> modes
+    const uint64_t allModes
 ) {
-    uint8_t allModes = 0;
-    for (auto m : modes) allModes |= 1 << (uint8_t)m;
-
     const uint64_t maskInc = 1ul << circuit.layers.back().inputOffset;
     const uint64_t maskTop = 1ul << circuit.layers.back().gateOffset;
     uint64_t       pos     = 1ul << circuit.layers.back().gateOffset;
@@ -285,7 +289,7 @@ bool logic::tryConstructOutputLayer(
     {
         for (gate.inputMask = maskInc; gate.inputMask < maskTop; gate.inputMask += maskInc)
         {
-            uint8_t modeOptions = allModes;
+            uint64_t modeOptions = allModes;
             for (auto [activation, dontCare] : activationTruthTable)
             {
                 if (dontCare & pos) continue;
@@ -296,10 +300,10 @@ bool logic::tryConstructOutputLayer(
                 // keep track of wether one is suitable with the 
                 // given input mask
                 uint64_t maskedActivation = activation & gate.inputMask;
-                uint8_t modeActivations = 
-                    (uint8_t(maskedActivation == gate.inputMask)  << uint8_t(AND)) |
-                    (uint8_t(maskedActivation > 0)                << uint8_t(OR))  |
-                    (uint8_t(__builtin_parityll(maskedActivation) << uint8_t(XOR)));
+                uint64_t modeActivations = 
+                    (uint64_t(maskedActivation == gate.inputMask)  << uint64_t(AND)) |
+                    (uint64_t(maskedActivation > 0)                << uint64_t(OR))  |
+                    (uint64_t(__builtin_parityll(maskedActivation) << uint64_t(XOR)));
                 modeActivations |= (~modeActivations) << 4;
                 
                 // keep 1 in mode option if mode activation matches desired activation

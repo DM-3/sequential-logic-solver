@@ -29,7 +29,7 @@ namespace logic
     {
         struct Gate
         {
-            enum class Mode : uint8_t
+            enum class Mode : uint64_t
             {
                 IN   = 0b000,
 
@@ -54,6 +54,9 @@ namespace logic
             std::vector<Gate> gates;
             uint8_t inputOffset;
             uint8_t gateOffset;
+
+            // set all gate activations
+            void setActivations(uint64_t& activation) const;
         };
 
         static std::optional<SequentialCircuit> solve(
@@ -82,12 +85,12 @@ namespace logic
         ActivationTruthTable& activationTruthTable,
         uint8_t layerIndex);
 
-    // return true if an output layer can be constructed,
-    // which satisfies the truth table
+    // return true if an output layer can be constructed from the 
+    // given encoded mode options, which satisfies the truth table
     bool tryConstructOutputLayer(
         SequentialCircuit& circuit, 
         const ActivationTruthTable& activationTruthTable,
-        const std::vector<SequentialCircuit::Gate::Mode> modes);
+        const uint64_t allModes);
 };
 
 
