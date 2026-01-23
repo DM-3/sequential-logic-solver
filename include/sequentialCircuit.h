@@ -66,6 +66,8 @@ namespace logic
             bool balanced = true);
 
         std::vector<Layer> layers;
+
+        std::string toLDG();
     };
 
 
@@ -133,7 +135,7 @@ std::vector<std::vector<T>> cartesianProduct(
 
 namespace std
 {
-    std::string to_string(const logic::SequentialCircuit::Gate::Mode& mode);
+    std::string to_string(const logic::SequentialCircuit::Gate::Mode& mode, bool pad = true);
     std::string to_string(const logic::SequentialCircuit::Gate& gate);
     std::string to_string(const logic::SequentialCircuit::Layer& layer);
     std::string to_string(const logic::SequentialCircuit& circuit);

@@ -20,7 +20,12 @@ int main()
     // auto circuit = logic::SequentialCircuit::solve({ 4, 6, 3 }, table, modes, false);
 
     if (circuit)
+    {
         std::cout << circuit.value();
+        std::cout << "logic directed graph notation:";
+        std::cout << circuit->toLDG();
+
+    }
     else
         std::cout << "no circuit solution found";
 
