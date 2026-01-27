@@ -14,15 +14,19 @@ int main()
     // auto table = logic::TruthTable::readCSV("ttables/greater_4_add_3.csv");
     // auto circuit = logic::SequentialCircuit::solve({ 4, 4, 4 }, table, modes, false);
     
-    std::vector<Mode> modes = { AND, XOR };
-    auto table = logic::TruthTable::readCSV("ttables/4bit_popcount.csv");
-    auto circuit = logic::SequentialCircuit::solve({ 4, 3, 1, 3 }, table, modes, false);
+    // std::vector<Mode> modes = { AND, XOR };
+    // auto table = logic::TruthTable::readCSV("ttables/4bit_popcount.csv");
+    // auto circuit = logic::SequentialCircuit::solve({ 4, 3, 1, 3 }, table, modes, false);
     // auto circuit = logic::SequentialCircuit::solve({ 4, 6, 3 }, table, modes, false);
+
+    std::vector<Mode> modes = { AND, XOR, XNOR };
+    auto table = logic::TruthTable::readCSV("ttables/bcd_to_7segment.csv");
+    auto circuit = logic::SequentialCircuit::solve({ 4, 5, 7 }, table, modes, false);
 
     if (circuit)
     {
         std::cout << circuit.value();
-        std::cout << "logic directed graph notation:";
+        std::cout << "logic directed graph notation:\n";
         std::cout << circuit->toLDG();
 
     }
