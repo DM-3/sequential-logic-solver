@@ -216,7 +216,7 @@ uint64_t logic::SequentialCircuit::Gate::getActivation(uint64_t activation) cons
     uint64_t act = 
         (mmode == uint64_t(Mode::AND)) & uint64_t(maskedActivation == inputMask) |
         (mmode == uint64_t(Mode::OR))  & uint64_t(maskedActivation != 0)         |
-        (mmode == uint64_t(Mode::XOR)) & __builtin_parityll(maskedActivation);
+        (mmode == uint64_t(Mode::XOR)) & std::bitset<64>(maskedActivation).count();
 
     return act ^ (uint64_t(mode) >> 2);
 }
@@ -301,9 +301,9 @@ bool logic::tryConstructOutputLayer(
                 // given input mask
                 uint64_t maskedActivation = activation & gate.inputMask;
                 uint64_t modeActivations = 
-                    (uint64_t(maskedActivation == gate.inputMask)  << uint64_t(AND)) |
-                    (uint64_t(maskedActivation > 0)                << uint64_t(OR))  |
-                    (uint64_t(__builtin_parityll(maskedActivation) << uint64_t(XOR)));
+                    (uint64_t(maskedActivation == gate.inputMask)                << uint64_t(AND)) |
+                    (uint64_t(maskedActivation > 0)                              << uint64_t(OR))  |
+                    (uint64_t((std::bitset<64>(maskedActivation).count() & 1ull) << uint64_t(XOR)));
                 modeActivations |= (~modeActivations) << 4;
                 
                 // keep 1 in mode option if mode activation matches desired activation
@@ -318,7 +318,7 @@ bool logic::tryConstructOutputLayer(
             if (modeOptions)
             {
                 // get first mode that persisted in mode options
-                gate.mode = (SequentialCircuit::Gate::Mode)__builtin_popcountll(~modeOptions & (modeOptions - 1));
+                gate.mode = (SequentialCircuit::Gate::Mode)std::bitset<64>(~modeOptions & (modeOptions - 1)).count();
                 goto next_pos;
             }
         }

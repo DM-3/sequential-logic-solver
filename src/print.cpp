@@ -2,6 +2,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <bitset>
 
 
 
@@ -27,7 +28,7 @@ namespace logic
                 {
                     uint64_t bit = (~inputMask + 1) & inputMask;
                     inputMask &= ~bit;
-                    uint8_t pos = __builtin_popcountll(bit - 1);
+                    uint8_t pos = std::bitset<64>(bit - 1).count();
                     edges.push_back({ pos, index });
                 }
             }
