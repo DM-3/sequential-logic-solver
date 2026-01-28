@@ -21,7 +21,7 @@ int main()
 
     std::vector<Mode> modes = { AND, XOR, XNOR };
     auto table = logic::TruthTable::readCSV("ttables/bcd_to_7segment.csv");
-    auto circuit = logic::SequentialCircuit::solve({ 4, 5, 7 }, table, modes, false);
+    auto circuit = logic::SequentialCircuit::solve({ 4, 5, 7 }, table, modes, true);
 
     if (circuit)
     {
