@@ -14,17 +14,17 @@ Tool to solve sequential logic circuits from a truth-table
 ## Build
 Within the toplevel directory of the repository, create a build directory:
 ```
-mkdir build && cd build
+mkdir build
 ```
 
 Then configure the cmake project:
 ```
-cmake ..
+cmake -S . -B build
 ```
 
 Finally build with:
 ```
-cmake --build .
+cmake --build build
 ```
 
 
@@ -33,5 +33,5 @@ From the toplevel directory of the repository,
 
 ...run examples with:
 ```
-build/examples/<name>
+build/main
 ```
