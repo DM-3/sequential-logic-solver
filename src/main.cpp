@@ -19,19 +19,22 @@ int main()
     // auto circuit = logic::SequentialCircuit::solve({ 4, 3, 1, 3 }, table, modes, false);
     // auto circuit = logic::SequentialCircuit::solve({ 4, 6, 3 }, table, modes, false);
 
-    std::vector<Mode> modes = { AND, XOR, XNOR };
-    auto table = logic::TruthTable::readCSV("ttables/bcd_to_7segment.csv");
-    auto circuit = logic::SequentialCircuit::solve({ 4, 5, 7 }, table, modes, true);
+    //std::vector<Mode> modes = { AND, XOR, XNOR };
+    //auto table = logic::TruthTable::readCSV("ttables/bcd_to_7segment.csv");
+    //auto circuit = logic::SequentialCircuit::solve({ 4, 5, 7 }, table, modes, false);
+
+    std::vector<Mode> modes = { AND, OR, XOR };
+    auto table = logic::TruthTable::readCSV("ttables/full_adder.csv");
+    auto circuit = logic::SequentialCircuit::solve({ 3, 3, 2 }, table, modes, false);
 
     if (circuit)
     {
         std::cout << circuit.value();
         std::cout << "logic directed graph notation:\n";
         std::cout << circuit->toLDG();
-
     }
     else
-        std::cout << "no circuit solution found";
+        std::cout << "no circuit solution found" << std::endl;
 
     return 0;
 }
